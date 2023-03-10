@@ -1,0 +1,14 @@
+{
+    "compilerOptions": {
+        "esModuleInterop": true,
+        "strict": true,
+        "target": "es6",
+        "module": "commonjs",
+        "outDir": "build",
+        "sourceMap": true,
+        "resolveJsonModule": true,
+        "noImplicitAny": false,
+        "noUnusedLocals": true
+    },
+    "include": ["src"]
+}
