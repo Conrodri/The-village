@@ -1,23 +1,38 @@
 import { Request, Response } from 'express';
+import * as admin from 'firebase-admin';
+const { FieldValue } = admin.firestore;
 
 const cutWood = async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { woodcuttingLevel } = req.body;
 
-    // Vérifiez si l'utilisateur est autorisé à effectuer l'action
-    // Par exemple, vous pouvez vérifier s'il a le niveau requis pour couper du bois
-    // ou s'il possède l'outil nécessaire pour le faire
+    const playerDoc = await db.collection('players').doc(userId).get();
+    const playerData = playerDoc.data();
 
-    // Mettez à jour le profil de l'utilisateur avec l'action effectuée
-    // Par exemple, vous pouvez incrémenter le niveau de coupe de bois de l'utilisateur
-    // ou déduire le nombre d'outils nécessaires pour l'action
-    // Vous pouvez stocker ces informations dans une base de données Firebase ou dans un autre service de stockage de données
+    // Vérifiez si le joueur a le niveau requis pour couper du bois
+    if (playerData.level < woodcuttingLevel) {
+        throw new Error("Le joueur n'a pas le niveau requis pour couper du bois");
+    }
+
+    // Vérifiez si le joueur possède un outil de coupe de bois
+    if (!playerData.inventory.woodcuttingTool) {
+        throw new Error("Le joueur n'a pas l'outil nécessaire pour couper du bois");
+    }
+
+    // Mettre à jour l'inventaire du joueur avec 10 unités de bois
+    await playerDoc.update({
+        inventory: {
+        wood: FieldValue.increment(10),
+        },
+    });
+
+    
 
     res.status(200).json({
       message: 'Action effectuée avec succès',
     });
-  } catch (error) {
+  } catch (error:any) {
     res.status(500).json({ message: error.message });
   }
 };
