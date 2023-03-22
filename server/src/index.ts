@@ -1,7 +1,9 @@
 import express from "express";
 import admin from "firebase-admin";
 import dotenv from "dotenv";
-import {Router} from 'express';
+import authenticate from './authMiddleware';
+import createUser from "./createUser";
+import cutWood from './cutWood';
 
 dotenv.config();
 
@@ -9,86 +11,36 @@ admin.initializeApp();
 
 const app = express();
 const db = admin.firestore();
-const router = Router();
-
 
 app.use(express.json());
+app.use(authenticate);
 
-
-app.get("/users", async (req, res) => {
-  const users = await db
-    .collection("users")
-    .get()
-    .then((query) => query.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-  console.log(users);
-
-  res.send(users);
-});
-
-app.post("/users", (req, res) => {
-  const body = req.body;
-  console.log(body);
-});
-
-
-//------------
-//Auth Part
-
-const getAuthToken = (req, res, next) => {
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.split(' ')[0] === 'Bearer'
-  ) {
-    req.authToken = req.headers.authorization.split(' ')[1];
-  } else {
-    req.authToken = null;
+// Récup tous les utilisateurs
+app.get('/users', async (req, res) => {
+  try {
+    const usersSnapshot = await db.collection('users').get();
+    const users = [];
+    usersSnapshot.forEach((doc) => {
+      users.push({ id: doc.id, ...doc.data() });
+    });
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
-  next();
-};
+});
 
-
-export const checkIfAuthenticated = (req, res, next) => {
- getAuthToken(req, res, async () => {
-    try {
-      const { authToken } = req;
-      const userInfo = await admin
-        .auth()
-        .verifyIdToken(authToken);
-      req.authId = userInfo.uid;
-      return next();
-    } catch (e) {
-      return res
-        .status(401)
-        .send({ error: 'You are not authorized to make this request' });
-    }
+// Définir une route protégée par authentification
+app.get('/profile', (req, res) => {
+  res.json({
+    user: req.user,
   });
-};
+});
 
-//-------------------------------
-// User creation
+// Définir la route pour créer un nouvel utilisateur
+app.post('/users', createUser);
 
-const createUser = async (req, res) => {
-  const {
-        email,
-        password,
-      } = req.body;
-  
-      const user = await admin.auth().createUser({
-        email,
-        password
-      });
-  
-      return res.send(user);
-  }
-//---------------------------------
-// Routeur
-
-router.post('/auth/signup', createUser);
-
-router.get('/users', checkIfAuthenticated, async (_, res) => {
-  console.log('ok');
-  // return res.send(user);
-});  
+// Définir la route pour couper du bois
+app.post('/users/:userId/cut-wood', cutWood);
 
 app.listen(3000, () => {
   console.log("Server is running on port 3000");
